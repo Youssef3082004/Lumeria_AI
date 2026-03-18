@@ -7,9 +7,10 @@ import pandas as pd
 app = FastAPI(title="Places Recommendation API")
 app.add_middleware(CORSMiddleware,allow_origins=["*"],allow_methods=["*"],allow_headers=["*"])
 
-places = pd.read_csv("Datasets/places.csv")
-Places_embeddings_matrix = np.load("Places_Embeddings.npy")
-index = faiss.read_index("faiss_Places_Embeddings.index")
+places = pd.read_csv("Recommendation Notebooks/Datasets/places.csv")
+users_dataset = pd.read_csv("Recommendation Notebooks/Datasets/Users.csv")
+Places_embeddings_matrix = np.load("Recommendation Notebooks/VectorDatabase/Places_Embeddings.npy")
+index = faiss.read_index("Recommendation Notebooks/VectorDatabase/faiss_Places_Embeddings.index")
 
 
 def get_similar_places(target_id: int, k: int = 6):
@@ -45,3 +46,38 @@ def similar_places(place_id: int, k: int = 10):
 
     results = results.sort_values(by="distance", ascending=False)
     return results.to_dict(orient="records")
+
+@app.get("/content/{user_id}")
+def Get_Similar_places_Content(user_id:str):
+    top_Recommendation = 10
+    fav_places = users_dataset[(users_dataset["user_id"] == user_id) & (users_dataset["rating"] > 3)]["place_id"].values
+    
+    if len(fav_places) == 0:
+        print(f"User {user_id} has no highly rated places yet.")
+        return pd.DataFrame() 
+        
+    fav_vectors = Places_embeddings_matrix[fav_places - 1]
+    
+    user_profile_vector = np.mean(fav_vectors, axis=0)
+    
+    user_profile_vector = user_profile_vector.reshape(1, -1).astype(np.float32)
+    
+    faiss.normalize_L2(user_profile_vector)
+    
+    k = len(fav_places) + top_Recommendation
+    distances, indices = index.search(user_profile_vector, k)
+    
+    distances = distances.flatten()
+    indices = indices.flatten()
+    
+    recommend = []
+    for dist, idx in zip(distances, indices):
+        place_id = places.iloc[idx]["ID"]
+        
+        if place_id not in fav_places:
+            row = places.iloc[idx].copy()
+            row["similarity_score"] = dist
+            recommend.append(row)
+            
+        if len(recommend) >= top_Recommendation:
+            return pd.DataFrame(recommend).to_dict(orient="records") 
