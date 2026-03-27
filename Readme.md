@@ -31,16 +31,5 @@ A personalized recommendation engine designed to suggest ancient sites, museums,
 ### 2. NLP Sentiment Analysis
 A Natural Language Processing model designed to analyze user comments and reviews left within the Lumeria application. This model classifies text as either **Positive** or **Negative**, allowing the platform to gauge user satisfaction, monitor the quality of experiences at different sites, and maintain a healthy community environment.
 
-
-## 🌿 Branching Strategy (Important Note for Watchers)
-
-**⚠️ Attention Watchers and Contributors:**
-To keep development organized and ensure stability, **each model is developed and maintained in its own dedicated branch.** 
-
 ---
-*The `main` branch will serve as the stable integration branch. Please do not push experimental model code directly to `main`.*
-
-
-
-
-
+<h3 align="center">Developed as part of Lumeria Mobile Application for Egypt Tourism</h3>
