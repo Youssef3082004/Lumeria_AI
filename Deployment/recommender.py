@@ -52,3 +52,19 @@ def get_user_based_faiss(user_id, ratings_df, places_df):
     
     # إرجاع تفاصيل الأماكن المرشحة
     return places_df[places_df['ID'].isin(final_rec_ids)].head(5).to_dict(orient="records")
+
+
+def get_similar_places(Places_embeddings_matrix:np.ndarray,index,places:pd.DataFrame, target_id: int, k: int = 10):
+    row_idx = target_id - 1
+    query_vector = Places_embeddings_matrix[row_idx: row_idx + 1]
+
+    distance, indices = index.search(query_vector, k)
+    distance = distance.flatten()
+    indices = indices.flatten()
+
+    for dist, idx in zip(distance, indices):
+        if idx == row_idx:
+            continue
+        row = places.iloc[idx, :].copy()
+        row["distance"] = float(dist)
+        yield row
