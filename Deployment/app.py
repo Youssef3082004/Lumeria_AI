@@ -23,22 +23,38 @@ def popular_api(location: str = None):
 
 @app.get("/recommend/user/{user_id}")
 def user_api(user_id: str):
-    # 2. محاولة جلب توصيات بناءً على ذوق اليوزر (FAISS)
+    # 1. جلب التوصيات المبنية على ذوق المستخدم (الـ Collaborative)
     recommendations = get_user_based_faiss(user_id, users_dataset, places)
     
-    # 3. لو اليوزر جديد (النتائج فاضية) ->  أماكن عشوائية
+    # تحويل جدول الأماكن بالكامل لقائمة لاختيار العشوائي منها لاحقاً
+    all_places_list = places.to_dict(orient="records")
+    target_count = 10  # العدد المطلوب في الصفحة
+
+    # الحالة الأولى: لو المستخدم جديد تماماً (لا توجد توصيات كولابريتيف)
     if not recommendations:
-        # تحويل جدول الأماكن لقائمة من القواميس
-        all_places_list = places.to_dict(orient="records")
-        num_to_select = min(10, len(all_places_list))
-        
-        # اختيار الأماكن العشوائية
-        random_recommendations = random.sample(all_places_list, k=num_to_select)
-        
-        return random_recommendations
+        num_to_select = min(target_count, len(all_places_list))
+        return random.sample(all_places_list, k=num_to_select)
 
-    return recommendations
+    # الحالة الثانية: يوجد توصيات كولابريتيف ولكن عددها أقل من 10
+    if len(recommendations) < target_count:
+        # استخراج المعرفات (IDs) الموجودة فعلياً في التوصيات الحالية لمنع التكرار
+        existing_ids = [p['ID'] for p in recommendations]
+        
+        # تصفية كل الأماكن لاستبعاد ما تم اقتراحه بالفعل
+        remaining_places = [p for p in all_places_list if p['ID'] not in existing_ids]
+        
+        # حساب كم مكان نحتاج لنكمل العدد إلى 10
+        needed_count = target_count - len(recommendations)
+        
+        # اختيار أماكن عشوائية تكمل العدد
+        extra_random_picks = random.sample(remaining_places, k=min(needed_count, len(remaining_places)))
+        
+        # دمج التوصيات الحقيقية مع العشوائية (التوصيات الحقيقية تظهر أولاً)
+        full_recommendations = recommendations + extra_random_picks
+        return full_recommendations
 
+    # الحالة الثالثة: لو الكولابريتيف جاب 10 أو أكتر، نرجعهم زي ما هما (أو أول 10)
+    return recommendations[:target_count]
 
 @app.get("/recommend/similarplaces/{place_id}")
 def similar_places(place_id:int, k:int = 10):
